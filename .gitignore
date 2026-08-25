@@ -1,0 +1,13 @@
+# 发布产物（Release 附件，不进仓库）
+*.zip
+*.tar.gz
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 临时文件
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
