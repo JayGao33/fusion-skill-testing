@@ -21,7 +21,7 @@ Put any skill (single-file or multi-file package) through its paces: static revi
 
 ## Getting started (no setup, just talk)
 
-- No Python? Still works: the form-level check falls back to manual AI review, behavioral testing runs as usual; oversized packages (>50 files) automatically degrade to gate + main-path testing — the limits are stated upfront, not hidden
+- With Python, everything runs automatically (all form-level checks); without Python, testing still works — the form level falls back to manual AI review, behavioral testing runs as usual. Oversized packages (>50 files) automatically degrade to gate + main-path testing — limits stated upfront, not hidden
 - "Test this skill" → tests the current or specified skill
 - "Run a regression test" → re-runs after fixes to confirm convergence
 - "Can this skill be trusted?" → runs the full flow and gives a verdict
@@ -29,7 +29,7 @@ Put any skill (single-file or multi-file package) through its paces: static revi
 
 ## Triggering it
 
-- Triggered by plain words (test this skill, review skill, audit skill, check this skill, evaluate this skill, skill quality check, regression test)
+- Triggered by plain words (test this skill, review skill, audit skill, check this skill, evaluate this skill, diagnose this skill, skill quality check, regression test)
 - Works out of the box; no configuration needed
 - Under the hood it runs `tools/formcheck.py` and reads the standards in `reference/` itself
 
@@ -55,6 +55,19 @@ After the form level, I'll run the full-path behavioral tests — complete repor
 - **Host can't read files / run scripts**: falls back to static review only (model knowledge + pasted content); behavioral testing isn't possible
 - **Target is not a skill package**: plain documents, websites, and spreadsheets are out of scope
 - **Purely subjective creative judgment**: with no objective criteria, "is it good" can't be tested
+
+## Author's self-check list (avoid common mistakes)
+
+Run through these 8 while writing a skill — most rework is avoidable (full criteria in reference/defects.md):
+
+1. **Path-skipping**: If the first message says "give me step 2 directly", does it skip the gate? → Add "first message still starts at the entry; stage words are hints only"
+2. **Placeholder leakage**: Could a hardcoded "word" in a template be output as real content? → Force replacement before output
+3. **Re-running**: When a deliverable already exists, re-run or claim it? → Add state reconciliation
+4. **Dual-source duplication**: Is the same rule written in two places? → One authoritative source, pointers elsewhere
+5. **Phantom parameters**: Doc says "configurable parameter" but the script never reads it? → Delete it, or demote to a one-line pointer
+6. **Vague completion**: Does "understood well enough" count as done? → Make it checkable and exhaustive
+7. **Over/under-triggering**: Missing triggers for what it should handle, or catching what it shouldn't? → Align trigger words with the capability boundary
+8. **Missing degradation**: Does it crash naked when the user's environment lacks something? → Add a fallback message and alternative path
 
 ## FAQ
 

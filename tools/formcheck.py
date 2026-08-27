@@ -291,9 +291,9 @@ if not risk_warn:
 
 print()
 if FAIL == 0:
-    tail = f"（含 {WARN_COUNT} 个 WARN）" if WARN_COUNT else ""
+    tail = f"（含 {WARN_COUNT} 个警告）" if WARN_COUNT else ""
     print(f"==> 形式层全部通过{tail}")
     sys.exit(0)
 else:
-    print("==> 存在失败项（见上，每条已附修复提示），exit 1")
+    print("==> 存在失败项（见上，每条已附怎么回事/怎么修），退出码 1")
     sys.exit(1)
