@@ -21,6 +21,7 @@ Put any skill (single-file or multi-file package) through its paces: static revi
 
 ## Getting started (no setup, just talk)
 
+- No Python? Still works: the form-level check falls back to manual AI review, behavioral testing runs as usual; oversized packages (>50 files) automatically degrade to gate + main-path testing — the limits are stated upfront, not hidden
 - "Test this skill" → tests the current or specified skill
 - "Run a regression test" → re-runs after fixes to confirm convergence
 - "Can this skill be trusted?" → runs the full flow and gives a verdict
@@ -32,9 +33,21 @@ Put any skill (single-file or multi-file package) through its paces: static revi
 - Works out of the box; no configuration needed
 - Under the hood it runs `tools/formcheck.py` and reads the standards in `reference/` itself
 
-## Quick example
+## Quick example (a real conversation)
 
-> You say "Test this skill" → it locates the most recently modified skill → runs the form-level check (seconds, like a linter) → picks Standard or Deep mode on your need → delivers a report: path matrix + per-path results + a defect list (each with file/line + fix hint) + token-efficiency rating + verdict (usable / fix first).
+**You**: Test this skill
+**It**: Sure — testing my-skill in Standard mode. Form-level check first; found 2 issues:
+1. 🔴 SKILL.md L24 links to a file that doesn't exist (P0, must fix)
+2. 🟡 Menu formatting is inconsistent in the README (P2, minor)
+After the form level, I'll run the full-path behavioral tests — complete report in a few minutes.
+
+**You**: How bad is it? Can I use it now?
+**It**: One P0, verdict: fix first — a broken link means the model reads empty content during execution. Every defect lists which file to change and how, so just follow it.
+
+**You**: Fixed it. Run the regression for me
+**It**: Re-ran the fixed paths + adjacent paths + main flow — P0 eliminated, no new regressions, verdict: usable. Report generated with the defect list and evidence lines.
+
+> Just want a seconds-level format check? Say "quick check" for gate mode (like a linter). For the full deep evaluation (baseline comparison + five-dimension summary), say "deep test".
 
 ## When NOT to use it
 
@@ -55,6 +68,11 @@ Put any skill (single-file or multi-file package) through its paces: static revi
 - **Can I trust the verdict?** It separates "on-the-fly reinvent" from "faithful to spec" and only counts the latter as passing — designed to catch fake passes.
 - **How do I judge whether a skill is actually good?** Look at five things: gate (any P0 hard flaws), reliability (does it degrade gracefully on errors), adaptability (does it trigger when it should and decline when it shouldn't), convention (is the doc understandable), effectiveness (does it actually run by its rules, no fake passes). The report condenses these into one verdict: **usable / fix first**.
 - **How large a skill can it test?** Up to 50 files with a SKILL.md under 400 lines → full flow. Larger packages degrade gracefully: gate + main path first, then the full behavioral pass on a subset you specify.
+- **Common FAILs, in plain words**
+  - `Link target not found` → A document references a filename that isn't in the package. Usually the file was renamed, moved, or has a case mismatch.
+  - `Anchor not found` → A link jumps to a `#heading`, but that heading no longer exists in the target file. Usually the heading was edited without updating the link.
+  - `Orphan file` → A file sits in the package but no document mentions it — the model will never read it.
+  - `Missing frontmatter` → SKILL.md lacks its identity block, so the model can't recognize the skill or know when to invoke it.
 
 ## Glossary
 

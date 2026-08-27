@@ -7,8 +7,8 @@ formcheck.py — skill 形式层检查（通用版，fusion-skill-testing 步骤
 依赖: Python 3
 说明: 仅检查确定性/机械性项目（跨 skill 通用）；语义层与行为层按 SKILL.md 流程人工执行。
       目标 skill 若有自己的 formcheck，优先用目标 skill 的，本脚本仅作兜底。
-      每条 FAIL 附「→ 修复提示」，帮助不熟悉脚本的用户定位问题；无法读取的文件按
-      WARN 跳过而非崩溃；未预期异常以友好信息兜底。
+      每条 FAIL 附双轨提示——「→ 怎么回事」（大白话）+「→ 怎么修」（技术指引），普通用户先看前者；
+      无法读取的文件按 WARN 跳过而非崩溃；未预期异常以友好信息兜底。
 
 检查项:
   ①  frontmatter: SKILL.md 必须有 name/description；其他 .md 不应有 frontmatter（防多入口）
@@ -71,11 +71,14 @@ def warn(msg):
     global WARN_COUNT
     print(f"  [WARN] {msg}")
     WARN_COUNT += 1
-def fail(msg, hint=None):
+def fail(msg, hint=None, plain=None):
+    """plain = 大白话解释（怎么回事）；hint = 技术修复指引（怎么修）。双轨输出，普通用户先看 plain。"""
     global FAIL
     print(f"  [FAIL] {msg}")
+    if plain:
+        print(f"         → 怎么回事：{plain}")
     if hint:
-        print(f"         → 修复提示：{hint}")
+        print(f"         → 怎么修：{hint}")
     FAIL = 1
 
 ALL_MD = []
@@ -105,12 +108,14 @@ print(f"=== 形式层检查（通用）· {os.path.basename(ROOT)} ===")
 print("--- ① frontmatter ---")
 if "SKILL.md" not in ALL_MD:
     fail("SKILL.md 不存在（这不是一个 skill 包？）",
+         plain="这个目录里没有 SKILL.md，工具不知道从哪读起",
          hint="在目录根放 SKILL.md，或以 skill 包目录为参数运行本脚本")
 else:
     txt = read("SKILL.md")
     fm = re.match(r"^---\n(.*?)\n---\n", txt, re.S)
     if not fm:
         fail("SKILL.md 缺少 frontmatter（必须以 --- 开头）",
+             plain="SKILL.md 开头缺一段身份说明，模型认不出这是个 skill",
              hint="文件开头加 --- 包裹的 frontmatter 块，内含 name / description")
     else:
         body = fm.group(1)
@@ -119,6 +124,7 @@ else:
                 ok(f"frontmatter.{key} 存在")
             else:
                 fail(f"frontmatter.{key} 缺失（模型无法自动触发该 skill）",
+                     plain=f"没有 {key}，模型不知道这个 skill 叫什么、什么时候该用它",
                      hint=f"在 frontmatter 块内补 {key}: <值>，这是模型识别与触发该 skill 的依据")
         if not body.strip().startswith("name:"):
             warn("frontmatter 首字段不是 name（惯例：name 在最前）")
@@ -128,6 +134,7 @@ for f in ALL_MD:
         continue
     if read(f).lstrip().startswith("---"):
         fail(f"{f} 带 frontmatter——只有 SKILL.md 应带 frontmatter（其余文件是参考材料）",
+             plain="参考文件带了只有 SKILL.md 才该有的开头格式，会造成多个入口、让模型混淆",
              hint="删除该文件开头的 --- 块，或将其并入 SKILL.md（多入口会令模型混淆）")
 
 # ------------------------------------------------------------
@@ -143,6 +150,7 @@ for f in ALL_MD:
             tgt = os.path.normpath(os.path.join(os.path.dirname(f), target))
             if not os.path.isfile(tgt):
                 fail(f"{f}:{lno} 链接目标不存在: {target}",
+                     plain="文档里点了个文件名，但那个文件不在包里（多半是改名了、挪位置了、或大小写对不上）",
                      hint="检查相对路径与文件名大小写（Windows 大小写不敏感，但跨平台会踩坑）；文件应在同一目录或按相对路径可达")
                 broken = 1
 if not broken:
@@ -179,6 +187,7 @@ for f in ALL_MD:
                 # 实际触发需标题刻意同名前缀，风险低，接受此折中以换中文标题兼容性。
                 if a not in headings[tgt] and not any(s.startswith(a) for s in headings[tgt]):
                     fail(f"{f}:{lno} 锚点不存在: {target}#{anchor}",
+                         plain="链接想跳到某个小标题，但目标文件里找不到这个标题（多半是标题改了、链接没跟着改）",
                          hint="修正 # 后的锚点使其对应目标文件的实际标题（中英文标点都会影响匹配）")
                     anchor_broken = 1
 if not anchor_broken:
@@ -199,6 +208,7 @@ if "SKILL.md" in ALL_MD:
             continue
         if f not in skill_txt:
             fail(f"孤儿文件：{f} 未被 SKILL.md 引用（无入口可达）",
+                 plain="这个文件躺在包里，但没有任何文档提到它——模型永远不会读到它",
                  hint="在 SKILL.md 加指向该文件的链接，或将其移出 skill 包（无入口的文件不会被模型读到）")
             orphan = 1
     if not orphan:
@@ -212,11 +222,13 @@ if LIMITS:
     for f, limit in LIMITS.items():
         if not os.path.isfile(f):
             fail(f"{f} 不存在（--limit 配置）",
+                 plain="你用 --limit 限定了行数，但指定的文件并不存在",
                  hint="检查 --limit 里的文件名与相对路径（相对当前运行目录）")
             continue
         n = len(read(f).splitlines())
         if n > limit:
             fail(f"{f} {n} 行 > 上限 {limit}",
+                 plain="这个文件超出了你设定的行数上限",
                  hint="精简该文件或把细节下沉到 reference/（行数红线用于控制单文件膨胀）")
         else:
             ok(f"{f} {n} 行 ≤ {limit}")
@@ -259,6 +271,7 @@ for f in SEC_FILES:
         for pat, desc in CREDENTIAL_PATTERNS:
             if re.search(pat, line):
                 fail(f"{f}:{lno} 敏感凭据 {desc}",
+                     plain="检测到疑似明文密钥/密码——这是安全问题，必须处理",
                      hint="移除硬编码凭据（改环境变量/外部配置），确认无残留后重跑")
                 cred_hit = 1
 if not cred_hit:
