@@ -8,7 +8,8 @@ formcheck.py — skill 形式层检查（通用版，fusion-skill-testing 步骤
 说明: 仅检查确定性/机械性项目（跨 skill 通用）；语义层与行为层按 SKILL.md 流程人工执行。
       目标 skill 若有自己的 formcheck，优先用目标 skill 的，本脚本仅作兜底。
       每条 FAIL 附双轨提示——「→ 怎么回事」（大白话）+「→ 怎么修」（技术指引），普通用户先看前者；
-      无法读取的文件按 WARN 跳过而非崩溃；未预期异常以友好信息兜底。
+      无法读取的文件按 WARN 显式跳过（每个文件只警告一次，并声明其涉及的全部检查项
+      视同未覆盖，防止把"读不到"误报成"没内容"）；未预期异常以友好信息兜底。
 
 检查项:
   ①  frontmatter: SKILL.md 必须有 name/description；其他 .md 不应有 frontmatter（防多入口）
@@ -65,6 +66,7 @@ if len(sys.argv) == 1 and not os.path.isfile(os.path.join(ROOT, "SKILL.md")):
 
 FAIL = 0
 WARN_COUNT = 0
+SKIPPED = set()  # 读取失败的文件：每个只警告一次，后续检查项对其实行跳过（防止误报"没内容"）
 
 def ok(msg):   print(f"  [OK] {msg}")
 def warn(msg):
@@ -90,14 +92,18 @@ for dirpath, _, files in os.walk("."):
 ALL_MD.sort()
 
 def read(f):
+    if f in SKIPPED:
+        return ""
     try:
         with open(f, encoding="utf-8") as fh:
             return fh.read()
     except (FileNotFoundError, PermissionError) as e:
-        warn(f"无法读取 {f}（{e.__class__.__name__}），跳过该文件")
+        SKIPPED.add(f)
+        warn(f"无法读取 {f}（{e.__class__.__name__}）：该文件涉及的全部检查项视同未覆盖，结果可能不完整")
         return ""
     except UnicodeDecodeError:
-        warn(f"{f} 不是有效 UTF-8 文本，跳过（如含二进制内容请改名）")
+        SKIPPED.add(f)
+        warn(f"{f} 不是有效 UTF-8 文本：该文件涉及的全部检查项视同未覆盖（如含二进制内容请改名）")
         return ""
 
 print(f"=== 形式层检查（通用）· {os.path.basename(ROOT)} ===")
@@ -112,22 +118,25 @@ if "SKILL.md" not in ALL_MD:
          hint="在目录根放 SKILL.md，或以 skill 包目录为参数运行本脚本")
 else:
     txt = read("SKILL.md")
-    fm = re.match(r"^---\n(.*?)\n---\n", txt, re.S)
-    if not fm:
-        fail("SKILL.md 缺少 frontmatter（必须以 --- 开头）",
-             plain="SKILL.md 开头缺一段身份说明，模型认不出这是个 skill",
-             hint="文件开头加 --- 包裹的 frontmatter 块，内含 name / description")
+    if "SKILL.md" in SKIPPED:
+        pass  # 读取失败已在上方 read() 显式警告，本检查项视同未覆盖，不做误导性 FAIL
     else:
-        body = fm.group(1)
-        for key in ("name", "description"):
-            if re.search(rf"^{key}\s*:", body, re.M):
-                ok(f"frontmatter.{key} 存在")
-            else:
-                fail(f"frontmatter.{key} 缺失（模型无法自动触发该 skill）",
-                     plain=f"没有 {key}，模型不知道这个 skill 叫什么、什么时候该用它",
-                     hint=f"在 frontmatter 块内补 {key}: <值>，这是模型识别与触发该 skill 的依据")
-        if not body.strip().startswith("name:"):
-            warn("frontmatter 首字段不是 name（惯例：name 在最前）")
+        fm = re.match(r"^---\n(.*?)\n---\n", txt, re.S)
+        if not fm:
+            fail("SKILL.md 缺少 frontmatter（必须以 --- 开头）",
+                 plain="SKILL.md 开头缺一段身份说明，模型认不出这是个 skill",
+                 hint="文件开头加 --- 包裹的 frontmatter 块，内含 name / description")
+        else:
+            body = fm.group(1)
+            for key in ("name", "description"):
+                if re.search(rf"^{key}\s*:", body, re.M):
+                    ok(f"frontmatter.{key} 存在")
+                else:
+                    fail(f"frontmatter.{key} 缺失（模型无法自动触发该 skill）",
+                         plain=f"没有 {key}，模型不知道这个 skill 叫什么、什么时候该用它",
+                         hint=f"在 frontmatter 块内补 {key}: <值>，这是模型识别与触发该 skill 的依据")
+            if not body.strip().startswith("name:"):
+                warn("frontmatter 首字段不是 name（惯例：name 在最前）")
 
 for f in ALL_MD:
     if f == "SKILL.md":
@@ -225,7 +234,10 @@ if LIMITS:
                  plain="你用 --limit 限定了行数，但指定的文件并不存在",
                  hint="检查 --limit 里的文件名与相对路径（相对当前运行目录）")
             continue
-        n = len(read(f).splitlines())
+        raw = read(f)
+        if f in SKIPPED:
+            continue  # 读取失败：已在 read() 显式警告，本项视同未覆盖
+        n = len(raw.splitlines())
         if n > limit:
             fail(f"{f} {n} 行 > 上限 {limit}",
                  plain="这个文件超出了你设定的行数上限",
@@ -265,8 +277,8 @@ HIGH_RISK_COMMANDS = [
 
 cred_hit = 0
 for f in SEC_FILES:
-    if not os.path.isfile(f):
-        continue
+    if not os.path.isfile(f) or f in SKIPPED:
+        continue  # SKIPPED：读取失败，本项视同未覆盖
     for lno, line in enumerate(read(f).splitlines(), 1):
         for pat, desc in CREDENTIAL_PATTERNS:
             if re.search(pat, line):
@@ -279,8 +291,8 @@ if not cred_hit:
 
 risk_warn = 0
 for f in SEC_FILES:
-    if not os.path.isfile(f):
-        continue
+    if not os.path.isfile(f) or f in SKIPPED:
+        continue  # SKIPPED：读取失败，本项视同未覆盖
     for lno, line in enumerate(read(f).splitlines(), 1):
         for pat in HIGH_RISK_COMMANDS:
             if re.search(pat, line):
@@ -290,6 +302,9 @@ if not risk_warn:
     ok("无高危操作命令")
 
 print()
+if SKIPPED:
+    print(f"注意：{len(SKIPPED)} 个文件读取失败（见上 WARN）——上述通过项仅对可读文件成立，"
+          f"被跳过的检查项需人工补测后再下结论。")
 if FAIL == 0:
     tail = f"（含 {WARN_COUNT} 个警告）" if WARN_COUNT else ""
     print(f"==> 形式层全部通过{tail}")

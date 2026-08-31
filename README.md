@@ -21,11 +21,32 @@ Put any skill (single-file or multi-file package) through its paces: static revi
 
 ## Getting started (no setup, just talk)
 
-- With Python, everything runs automatically (all form-level checks); without Python, testing still works — the form level falls back to manual AI review, behavioral testing runs as usual. Oversized packages (>50 files) automatically degrade to gate + main-path testing — limits stated upfront, not hidden
-- "Test this skill" → tests the current or specified skill
+You don't need to read code — every report section has a plain-language summary, and the verdict (usable / fix first) is enough to make decisions; technical details are for the person doing the fixing.
+
+- "Test this skill" → tests the current or specified skill (Standard mode, default)
+- "Quick check" → form-level gate only (seconds, like a linter)
+- "Deep test / full audit" → full deep evaluation (baseline comparison + five-dimension summary)
 - "Run a regression test" → re-runs after fixes to confirm convergence
 - "Can this skill be trusted?" → runs the full flow and gives a verdict
 - When you don't name one, it defaults to the skill in the current conversation / most recently modified
+
+**Which of the three modes? (one-line analogy)**
+
+| Mode | Analogy | When to use |
+|:--|:--|:--|
+| Quick (gate) | Taking temperature: seconds-level format gate | Early drafts, after every iteration (like lint) |
+| Standard (default) | Regular checkup: format + full-path behavior + token | Most of the time |
+| Deep | Full exam + imaging: adds baseline comparison + five-dimension summary | Audit before release/publishing |
+
+**With and without Python — what actually differs (transparent degradation)**
+
+| Check layer | With Python | Without Python |
+|:--|:--|:--|
+| Form level (frontmatter/links/anchors/orphans/security) | Script runs automatically | Manual AI review item by item — slower, may miss details |
+| Behavior level (paths/failure paths/regression) | Runs | Runs |
+| Verdict reliability | Complete | Slightly discounted; report notes "script not run" |
+
+Oversized packages (>50 files) automatically degrade to gate + main-path testing, or can be split with the "batched" method in the FAQ — limits stated upfront, not hidden
 
 ## Triggering it
 
@@ -47,7 +68,7 @@ After the form level, I'll run the full-path behavioral tests — complete repor
 **You**: Fixed it. Run the regression for me
 **It**: Re-ran the fixed paths + adjacent paths + main flow — P0 eliminated, no new regressions, verdict: usable. Report generated with the defect list and evidence lines.
 
-> Just want a seconds-level format check? Say "quick check" for gate mode (like a linter). For the full deep evaluation (baseline comparison + five-dimension summary), say "deep test".
+> Mode selection (Quick/Standard/Deep) is covered by the analogy table in "Getting started" above.
 
 ## When NOT to use it
 
@@ -69,6 +90,18 @@ Run through these 8 while writing a skill — most rework is avoidable (full cri
 7. **Over/under-triggering**: Missing triggers for what it should handle, or catching what it shouldn't? → Align trigger words with the capability boundary
 8. **Missing degradation**: Does it crash naked when the user's environment lacks something? → Add a fallback message and alternative path
 
+## Anti-patterns at a glance (what the 3 most common traps look like)
+
+The checklist above is "what to check"; this is "what the mistake looks like and how the test catches you" (full criteria in reference/defects.md):
+
+| Anti-pattern | Bad pattern (one-glance recognition) | How the test catches it | Correct pattern |
+|:--|:--|:--|:--|
+| **Path-skipping** | Only "mid-flow" rules exist, no "first-message" rule | First message says "give me step 2 directly"; the model skips the gate and delivers → 🔴 P0 | Add "first message still starts at the entry; stage words are hints only" |
+| **Placeholder leakage** | Reply templates hardcode a placeholder word instead of real content | Output contains the placeholder itself → 🔴 P0 | Delete the placeholder, or force replacement before output |
+| **Re-running** | No "claim / skip" state reconciliation after a deliverable exists | The model re-runs the whole thing after an interjection → 🔴 P0 | Add state reconciliation: already produced → claim + one-line skip |
+
+> These three account for most P0s in real evaluations. Fix these first, then optimize.
+
 ## FAQ
 
 - **What do I need to install to test a skill?** Nothing. The host just needs to read files and run Python; it can also work fully offline (model knowledge + skill files).
@@ -80,7 +113,7 @@ Run through these 8 while writing a skill — most rework is avoidable (full cri
 - **It says "fix first" — can I fix it myself?** Yes. Every defect says which file to change and how; say "regression test" after fixing to verify convergence.
 - **Can I trust the verdict?** It separates "on-the-fly reinvent" from "faithful to spec" and only counts the latter as passing — designed to catch fake passes.
 - **How do I judge whether a skill is actually good?** Look at five things: gate (any P0 hard flaws), reliability (does it degrade gracefully on errors), adaptability (does it trigger when it should and decline when it shouldn't), convention (is the doc understandable), effectiveness (does it actually run by its rules, no fake passes). The report condenses these into one verdict: **usable / fix first**.
-- **How large a skill can it test?** Up to 50 files with a SKILL.md under 400 lines → full flow. Larger packages degrade gracefully: gate + main path first, then the full behavioral pass on a subset you specify.
+- **How large a skill can it test?** Up to 50 files with a SKILL.md under 400 lines → full flow. Larger packages: ① quick route — gate + main path first, then the full behavioral pass on a subset you specify; ② batched route — split the package into 2-3 batches by subdirectory/module, one sub-report per batch, merge the conclusions at the end. Pick one; don't force it.
 - **Common FAILs, in plain words**
   - `Link target not found` → A document references a filename that isn't in the package. Usually the file was renamed, moved, or has a case mismatch.
   - `Anchor not found` → A link jumps to a `#heading`, but that heading no longer exists in the target file. Usually the heading was edited without updating the link.
