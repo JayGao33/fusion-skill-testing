@@ -2,7 +2,7 @@
 
 > © 2026 Bangbang fusion · Licensed under CC BY-NC-SA 4.0
 
-Put any skill (single-file or multi-file package) through its paces: static review, full-path behavioral testing, tiered fixes, and regression — then get an evidence-backed defect list and a clear verdict: usable as-is, or fix these first. Platform-agnostic by design: it serves the user's goal of shipping a skill that is genuinely good and actually works, not any single platform's review rules.
+Put any skill (single-file or multi-file package) through its paces: static review, full-path behavioral testing, tiered fixes, and regression — then get an evidence-backed defect list and a clear verdict: usable as-is, or fix these first. Platform-agnostic by design: it serves the user's goal of shipping a skill that is genuinely good and actually works, not any single platform's review rules. **Fully local, zero networking** — no external service dependency, works out of the box on any domestic (CN) machine.
 
 ## What problem it solves
 
@@ -36,7 +36,7 @@ You don't need to read code — every report section has a plain-language summar
 |:--|:--|:--|
 | Quick (gate) | Taking temperature: seconds-level format gate | Early drafts, after every iteration (like lint) |
 | Standard (default) | Regular checkup: format + full-path behavior + token | Most of the time |
-| Deep | Full exam + imaging: adds baseline comparison + five-dimension summary | Audit before release/publishing |
+| Deep | Full exam + imaging: adds baseline comparison + five-dimension summary + usefulness score | Audit before release/publishing — also shows "is this tool worth making, how many steps it actually saves" |
 
 **With and without Python — what actually differs (transparent degradation)**
 
@@ -70,6 +70,18 @@ After the form level, I'll run the full-path behavioral tests — complete repor
 
 > Mode selection (Quick/Standard/Deep) is covered by the analogy table in "Getting started" above.
 
+## First use · walkthrough (from zero to report in 5 minutes)
+
+Using "I just finished my-skill and this is my first test" as the example:
+
+1. **Just say it**: "Test this skill". It recognizes my-skill in the current conversation and starts in Standard mode — form gate via script first.
+2. **Read the form-level results**: it reports 2 issues — `SKILL.md L24 link target not found` (🔴 P0) and `README menu formatting inconsistent` (🟡 P2). Confused? Every item has a plain-language explanation (see the "Common FAILs" section in the FAQ).
+3. **Decide what to do**: with a P0 present the verdict is "fix first". Don't panic — it doesn't mean the skill is unusable, just that a hard flaw needs fixing first; the fix for a P0 is written into the defect list.
+4. **Fix it**: every defect says which file to change and how. Then say "run a regression test".
+5. **Read the regression verdict**: re-runs the fixed paths + adjacent paths + main flow — P0 eliminated, no new regressions → verdict: "usable".
+
+> All you do end-to-end is three things: say one sentence → read the verdict → fix. Technical details in the report are for the person fixing; you only need the final "usable / fix first".
+
 ## When NOT to use it
 
 - **Not about skill quality**: coding, translation, general Q&A — it won't trigger, and you shouldn't force it
@@ -77,7 +89,9 @@ After the form level, I'll run the full-path behavioral tests — complete repor
 - **Target is not a skill package**: plain documents, websites, and spreadsheets are out of scope
 - **Purely subjective creative judgment**: with no objective criteria, "is it good" can't be tested
 
-## Author's self-check list (avoid common mistakes)
+## Author's self-check list (advanced · skippable for new users)
+
+The next two sections are advanced content for **skill authors** — if you only use this tool to test other people's skills, skip them; nothing breaks.
 
 Run through these 8 while writing a skill — most rework is avoidable (full criteria in reference/defects.md):
 
@@ -90,9 +104,9 @@ Run through these 8 while writing a skill — most rework is avoidable (full cri
 7. **Over/under-triggering**: Missing triggers for what it should handle, or catching what it shouldn't? → Align trigger words with the capability boundary
 8. **Missing degradation**: Does it crash naked when the user's environment lacks something? → Add a fallback message and alternative path
 
-## Anti-patterns at a glance (what the 3 most common traps look like)
+## Anti-patterns at a glance (advanced · skippable for new users)
 
-The checklist above is "what to check"; this is "what the mistake looks like and how the test catches you" (full criteria in reference/defects.md):
+Continuing from the previous section: the checklist above is "what to check"; this is "what the mistake looks like and how the test catches you" (full criteria in reference/defects.md):
 
 | Anti-pattern | Bad pattern (one-glance recognition) | How the test catches it | Correct pattern |
 |:--|:--|:--|:--|
