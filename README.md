@@ -70,6 +70,21 @@ After the form level, I'll run the full-path behavioral tests — complete repor
 
 > Mode selection (Quick/Standard/Deep) is covered by the analogy table in "Getting started" above.
 
+## What a report looks like (sample output)
+
+What you get back is an **evidence-backed report** in six sections. The two key parts below (using a fictional "daily plan generator" skill as an example):
+
+**Defect list** — every item carries its location and fix, so you can just follow it:
+
+| # | Problem (plain words) | Location | Severity | How to fix |
+|:--|:--|:--|:--|:--|
+| D1 | Saying "give me tomorrow's plan directly" skips confirmation and generates the plan | SKILL.md L12 | 🔴 P0 | Add "first message still starts at the entry; stage words are hints only" |
+| D2 | Menu is numbered in one place, unnumbered in another | SKILL.md L30 | 🟡 P2 | Unify the menu template |
+
+**Verdict** — the only line you need to read: **fix first** — 1 P0 (path-skipping) makes the entry path unreliable. Fix the P0s first; every defect says which file to change and how. Then say "run a regression test" to re-evaluate.
+
+> The full report also includes: per-path PASS/FAIL with reasons, a token-efficiency rating (does it waste tokens), and a validity check (anti "fake pass"). Deep mode adds a five-dimension quality summary and a usefulness score — see the template in reference/report.md.
+
 ## First use · walkthrough (from zero to report in 5 minutes)
 
 Using "I just finished my-skill and this is my first test" as the example:
